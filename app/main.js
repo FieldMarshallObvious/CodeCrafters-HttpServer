@@ -3,7 +3,7 @@ const net = require("net");
 // You can use print statements as follows for debugging, they'll be visible when running tests.
 console.log("Logs from your program will appear here!");
 
-valid_paths = ["", "echo"];
+valid_paths = ["", "echo", "user-agent"];
 
 // Uncomment this to pass the first stage
 const server = net.createServer((socket) => {
@@ -17,6 +17,15 @@ const server = net.createServer((socket) => {
         case "echo":
           body = path[2];
           httpResponse = `HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: ${Buffer.byteLength(body)}\r\n\r\n${body}`;
+          socket.write(httpResponse);
+          break;
+
+        case "user-agent":
+          request_agent = parts[5].split("\r\n")[0];
+          console.log(parts[5].split("\r\n"));
+          console.log(request_agent);
+          httpResponse = `HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: ${Buffer.byteLength(request_agent)}\r\n\r\n ${request_agent}`;
+          console.log(httpResponse);
           socket.write(httpResponse);
           break;
 
