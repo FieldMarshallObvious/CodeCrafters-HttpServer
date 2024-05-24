@@ -7,6 +7,9 @@ valid_paths = ["", "echo", "user-agent"];
 
 // Uncomment this to pass the first stage
 const server = net.createServer((socket) => {
+  socket.on("close", () => {
+    socket.end();
+  });
   socket.on("data", (data) => {
     parts = String(data).split(" ");
     request = parts[0];
@@ -34,10 +37,6 @@ const server = net.createServer((socket) => {
       const httpResponse = "HTTP/1.1 404 Not Found\r\n\r\n";
       socket.write(httpResponse);
     }
-  });
-  socket.on("close", () => {
-    socket.end();
-    server.close();
   });
 });
 
