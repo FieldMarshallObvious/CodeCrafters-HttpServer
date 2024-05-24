@@ -9,7 +9,6 @@ valid_paths = ["", "echo", "user-agent"];
 const server = net.createServer((socket) => {
   socket.on("data", (data) => {
     parts = String(data).split(" ");
-    console.log("parts", parts);
     request = parts[0];
     path = parts[1].split("/");
     if (request == "GET" && valid_paths.includes(path[1])) {
@@ -21,11 +20,8 @@ const server = net.createServer((socket) => {
           break;
 
         case "user-agent":
-          request_agent = parts[5].split("\r\n")[0];
-          console.log(parts[5].split("\r\n"));
-          console.log(request_agent);
+          request_agent = parts[parts.length - 1].split("\r\n")[0];
           httpResponse = `HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: ${Buffer.byteLength(request_agent)}\r\n\r\n ${request_agent}`;
-          console.log(httpResponse);
           socket.write(httpResponse);
           break;
 
