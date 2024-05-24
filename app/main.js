@@ -21,7 +21,7 @@ const server = net.createServer((socket) => {
 
         case "user-agent":
           request_agent = parts[parts.length - 1].split("\r\n")[0];
-          httpResponse = `HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: ${Buffer.byteLength(request_agent)}\r\n\r\n ${request_agent}`;
+          httpResponse = `HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: ${Buffer.byteLength(request_agent)}\r\n\r\n${request_agent}`;
           socket.write(httpResponse);
           break;
 
