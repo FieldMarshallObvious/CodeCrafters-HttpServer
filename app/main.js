@@ -9,13 +9,14 @@ valid_paths = ["", "echo"];
 const server = net.createServer((socket) => {
   socket.on("data", (data) => {
     parts = String(data).split(" ");
+    console.log("parts", parts);
     request = parts[0];
     path = parts[1].split("/");
     if (request == "GET" && valid_paths.includes(path[1])) {
       switch (path[1]) {
         case "echo":
           body = path[2];
-          httpResponse = `HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: 3\r\n\r\n${body}`;
+          httpResponse = `HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: ${Buffer.byteLength(body)}\r\n\r\n${body}`;
           socket.write(httpResponse);
           break;
 
