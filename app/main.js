@@ -30,7 +30,7 @@ const server = net.createServer((socket) => {
 server.listen(serverPort, serverHost);
 
 function buildResponse(path, parts) {
-  let body;
+  let body = "";
   let responseHeaders = "Content-Type: text/plain\r\n";
   let status = HTTP_NOT_FOUND;
 
@@ -47,18 +47,20 @@ function buildResponse(path, parts) {
       requested_file = path.length > 2 ? path[2] : "";
       const directory = process.argv[3];
       file_path = directory + "/" + requested_file;
+      console.log("File path:" + file_path);
+
       try {
         body = fs.readFileSync(file_path, "utf8").toString();
         responseHeaders = "Content-Type: application/octet-stream\r\n";
         status = HTTP_OK;
       } catch (error) {
-        console.log(error.message);
         status = HTTP_NOT_FOUND;
       }
       break;
 
     default:
       body = "";
+      status = HTTP_OK;
       break;
   }
 
