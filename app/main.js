@@ -1,43 +1,66 @@
 const net = require("net");
+const fs = require("fs");
 
-// You can use print statements as follows for debugging, they'll be visible when running tests.
 console.log("Logs from your program will appear here!");
 
-valid_paths = ["", "echo", "user-agent"];
+const validPaths = ["", "echo", "user-agent", "files"];
+const HTTP_OK = "HTTP/1.1 200 OK\r\n";
+const HTTP_NOT_FOUND = "HTTP/1.1 404 Not Found\r\n\r\n";
+const serverPort = 4221;
+const serverHost = "localhost";
 
-// Uncomment this to pass the first stage
 const server = net.createServer((socket) => {
-  socket.on("close", () => {
-    socket.end();
-  });
   socket.on("data", (data) => {
-    parts = String(data).split(" ");
-    request = parts[0];
-    path = parts[1].split("/");
-    if (request == "GET" && valid_paths.includes(path[1])) {
-      switch (path[1]) {
-        case "echo":
-          body = path[2];
-          httpResponse = `HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: ${Buffer.byteLength(body)}\r\n\r\n${body}`;
-          socket.write(httpResponse);
-          break;
+    const parts = String(data).split(" ");
+    const request = parts[0];
+    const path = parts[1].split("/");
 
-        case "user-agent":
-          request_agent = parts[parts.length - 1].split("\r\n")[0];
-          httpResponse = `HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: ${Buffer.byteLength(request_agent)}\r\n\r\n${request_agent}`;
-          socket.write(httpResponse);
-          break;
+    socket.on("close", () => {
+      socket.end();
+    });
 
-        default:
-          httpResponse = "HTTP/1.1 200 OK\r\n\r\n";
-          socket.write(httpResponse);
-          break;
-      }
+    if (request === "GET" && validPaths.includes(path[1])) {
+      socket.write(buildResponse(path, parts));
     } else {
-      const httpResponse = "HTTP/1.1 404 Not Found\r\n\r\n";
-      socket.write(httpResponse);
+      socket.write(HTTP_NOT_FOUND);
     }
   });
 });
 
-server.listen(4221, "localhost");
+server.listen(serverPort, serverHost);
+
+function buildResponse(path, parts) {
+  let body;
+  let responseHeaders = "Content-Type: text/plain\r\n";
+  let status = HTTP_NOT_FOUND;
+
+  switch (path[1]) {
+    case "echo":
+      body = path.length > 2 ? path[2] : ""; // handling potential undefined path[2]
+      status = HTTP_OK;
+      break;
+    case "user-agent":
+      body = parts[parts.length - 1].split("\r\n")[0]; // assuming this is the user-agent part
+      status = HTTP_OK;
+      break;
+    case "files":
+      requested_file = path.length > 2 ? path[2] : "";
+      const directory = process.argv[3];
+      file_path = directory + "/" + requested_file;
+      try {
+        body = fs.readFileSync(file_path, "utf8").toString();
+        responseHeaders = "Content-Type: application/octet-stream\r\n";
+        status = HTTP_OK;
+      } catch (error) {
+        console.log(error.message);
+        status = HTTP_NOT_FOUND;
+      }
+      break;
+
+    default:
+      body = "";
+      break;
+  }
+
+  return `${status}${responseHeaders}Content-Length: ${Buffer.byteLength(body)}\r\n\r\n${body}`;
+}
