@@ -56,8 +56,12 @@ function buildResponse(path, requestBody, type, headers) {
   let responseHeaders = "Content-Type: text/plain\r\n";
   let status = HTTP_NOT_FOUND;
 
-  if (validEncoding.includes(getHeader(headers, "Accept-Encoding"))) {
-    responseHeaders += `Content-Encoding: ${getHeader(headers, "Accept-Encoding")}\r\n`;
+  encodings = getHeader(headers, "Accept-Encoding")?.split(",") || [];
+  for (let encoding of encodings) {
+    if (validEncoding.includes(encoding.trim())) {
+      responseHeaders += `Content-Encoding: ${encoding}\r\n`;
+      break;
+    }
   }
 
   switch (path[0]) {
