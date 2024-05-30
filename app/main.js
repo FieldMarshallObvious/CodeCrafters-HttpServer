@@ -1,5 +1,6 @@
 const net = require("net");
 const fs = require("fs");
+const zlib = require("zlib");
 
 console.log("Logs from your program will appear here!");
 
@@ -33,7 +34,10 @@ const server = net.createServer((socket) => {
       (requestType === "GET" && validGETPaths.includes(path[0])) ||
       (requestType === "POST" && validPOSTPaths.includes(path[0]))
     ) {
-      socket.write(buildResponse(path, body, requestType, headers));
+      responses = buildResponse(path, body, requestType, headers);
+      responses.forEach((response) => {
+        socket.write(response);
+      });
     } else {
       socket.write(HTTP_NOT_FOUND);
     }
@@ -56,10 +60,12 @@ function buildResponse(path, requestBody, type, headers) {
   let responseHeaders = "Content-Type: text/plain\r\n";
   let status = HTTP_NOT_FOUND;
 
-  encodings = getHeader(headers, "Accept-Encoding")?.split(",") || [];
+  let valid_encoding = "";
+  let encodings = getHeader(headers, "Accept-Encoding")?.split(",") || [];
   for (let encoding of encodings) {
     if (validEncoding.includes(encoding.trim())) {
       responseHeaders += `Content-Encoding: ${encoding}\r\n`;
+      valid_encoding = encoding;
       break;
     }
   }
@@ -103,5 +109,22 @@ function buildResponse(path, requestBody, type, headers) {
       break;
   }
 
-  return `${status}${responseHeaders}Content-Length: ${Buffer.byteLength(body)}\r\n\r\n${body}`;
+  if (valid_encoding) {
+    switch (valid_encoding) {
+      case "gzip":
+        const encoded_body = zlib.gzipSync(body);
+        return [
+          `${status}${responseHeaders}Content-Length: ${Buffer.byteLength(encoded_body)}\r\n\r\n`,
+          encoded_body,
+        ];
+      default:
+        return [
+          `${status}${responseHeaders}Content-Length: ${Buffer.byteLength(body)}\r\n\r\n${body}`,
+        ];
+    }
+  } else {
+    return [
+      `${status}${responseHeaders}Content-Length: ${Buffer.byteLength(body)}\r\n\r\n${body}`,
+    ];
+  }
 }
