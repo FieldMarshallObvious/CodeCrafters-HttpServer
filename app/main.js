@@ -6,6 +6,8 @@ console.log("Logs from your program will appear here!");
 const validGETPaths = ["", "echo", "user-agent", "files"];
 const validPOSTPaths = ["files"];
 
+const validEncoding = ["gzip"];
+
 const HTTP_OK = "HTTP/1.1 200 OK\r\n";
 const HTTP_CREATED = "HTTP/1.1 201 Created\r\n\r\n";
 const HTTP_NOT_FOUND = "HTTP/1.1 404 Not Found\r\n\r\n";
@@ -14,21 +16,24 @@ const HTTP_SERVER_ERROR = "HTTP/1.1 500 Internal Server Error\r\n\r\n";
 const serverPort = 4221;
 const serverHost = "localhost";
 
-const server = net.createServer((socket) => {
-  socket.on("data", (data) => {
-    const parts = String(data).split(" ");
-    const request = parts[0];
-    const path = parts[1].split("/");
+function getHeader(headers, headerName) {
+  const header = headers.find((header) => header.startsWith(headerName + ":"));
+  return header ? header.split(": ")[1].trim() : null;
+}
 
-    socket.on("close", () => {
-      socket.end();
-    });
+const server = net.createServer((socket) => {
+  socket.on("close", () => {
+    socket.end();
+  });
+
+  socket.on("data", (data) => {
+    const { requestType, path, headers, body } = parseRequest(data);
 
     if (
-      (request === "GET" && validGETPaths.includes(path[1])) ||
-      (request === "POST" && validPOSTPaths.includes(path[1]))
+      (requestType === "GET" && validGETPaths.includes(path[0])) ||
+      (requestType === "POST" && validPOSTPaths.includes(path[0]))
     ) {
-      socket.write(buildResponse(path, parts, request));
+      socket.write(buildResponse(path, body, requestType, headers));
     } else {
       socket.write(HTTP_NOT_FOUND);
     }
@@ -37,24 +42,40 @@ const server = net.createServer((socket) => {
 
 server.listen(serverPort, serverHost);
 
-function buildResponse(path, parts, type) {
+function parseRequest(data) {
+  const text = data.toString();
+  const [headerPart, body] = text.split("\r\n\r\n");
+  const headers = headerPart.split("\r\n");
+  const [requestType, fullPath] = headers.shift().split(" ");
+  const path = fullPath.split("/").slice(1);
+  return { requestType, path, headers, body };
+}
+
+function buildResponse(path, requestBody, type, headers) {
   let body = "";
   let responseHeaders = "Content-Type: text/plain\r\n";
   let status = HTTP_NOT_FOUND;
 
-  switch (path[1]) {
+  if (validEncoding.includes(getHeader(headers, "Accept-Encoding"))) {
+    responseHeaders += `Content-Encoding: ${getHeader(headers, "Accept-Encoding")}\r\n`;
+  }
+
+  switch (path[0]) {
+    case "":
+      status = HTTP_OK;
+      break;
     case "echo":
-      body = path.length > 2 ? path[2] : ""; // handling potential undefined path[2]
+      body = path[1] || "";
       status = HTTP_OK;
       break;
     case "user-agent":
-      body = parts[parts.length - 1].split("\r\n")[0]; // assuming this is the user-agent part
+      const userAgent = getHeader(headers, "User-Agent") || "";
+      body = userAgent;
       status = HTTP_OK;
       break;
     case "files":
-      requested_file = path.length > 2 ? path[2] : "";
       const directory = process.argv[3];
-      file_path = directory + "/" + requested_file;
+      const file_path = `${directory}/${path[1] || ""}`;
 
       if (type === "GET") {
         try {
@@ -64,24 +85,17 @@ function buildResponse(path, parts, type) {
         } catch (error) {
           status = HTTP_NOT_FOUND;
         }
-      }
-      if (type === "POST") {
-        parts_text = parts.join(" ");
-        let body_seperator = parts_text.indexOf("\r\n\r\n") + 4;
-        let bodyContent = parts_text.substring(body_seperator);
-
+      } else if (type === "POST") {
         try {
-          fs.writeFileSync(file_path, bodyContent);
+          fs.writeFileSync(file_path, requestBody);
           status = HTTP_CREATED;
         } catch (error) {
           status = HTTP_SERVER_ERROR;
         }
       }
       break;
-
     default:
-      body = "";
-      status = HTTP_OK;
+      status = HTTP_NOT_FOUND;
       break;
   }
 
